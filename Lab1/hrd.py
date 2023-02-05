@@ -126,6 +126,22 @@ class State:
         self.parent = parent
         self.id = hash(board)  # The id for breaking ties.
 
+    def test_goal(self):
+        """
+        Test if the current state is the goal state.
+
+        :return: True if the current state is the goal state and False otherwise.
+        :rtype: bool
+        """
+
+        for piece in self.board.pieces:
+            if piece.is_goal:
+                if (self.board.grid[3][1] == char_goal 
+                    and self.board.grid[3][2] == char_goal
+                    and self.board.grid[4][1] == char_goal 
+                    and self.board.grid[4][2] == char_goal):
+                    return True
+        return False
 
 def read_from_file(filename):
     """
@@ -165,10 +181,26 @@ def read_from_file(filename):
     
     return board
 
+def man_dist(state): 
+    """
+    Calculate the Manhattan distance of the current state.
+
+    :param state: The current state.
+    :type state: State
+    :return: The manhattan distance of the current state.
+    :rtype: int
+    """
+
+    distance = 1
+    for piece in state.board.pieces:
+        if piece.is_goal:
+            distance = abs(3 - piece.coord_y) + abs(1 - piece.coord_x)
+
+    return distance
 
 
 if __name__ == "__main__":
-
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--inputfile",
@@ -191,10 +223,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+
     # read the board from the file
     board = read_from_file(args.inputfile)
-    
-
+    '''
+    board = read_from_file('test1.txt')
+    state = State(board, 0, 0)
+    #db
+    # for piece in board.pieces:
+    #     print(piece)
+    board.display()
+    #print(state.test_goal())
+    print(man_dist(state))
 
 
 

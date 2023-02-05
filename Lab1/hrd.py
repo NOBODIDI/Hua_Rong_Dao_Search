@@ -1,3 +1,4 @@
+import copy
 from copy import deepcopy
 from heapq import heappush, heappop
 import time
@@ -38,6 +39,25 @@ class Piece:
     def __repr__(self):
         return '{} {} {} {} {}'.format(self.is_goal, self.is_single, \
             self.coord_x, self.coord_y, self.orientation)
+
+    def move_valid(self, x_coord, y_coord): 
+        """
+        Check if the given coordinate is valid.
+        """
+        if(self.is_single):
+            if (x_coord < 0 or x_coord > 3 or y_coord < 0 or y_coord > 4):
+                return False
+        if (self.is_goal):
+            if (x_coord < 0 or x_coord > 2 or y_coord < 0 or y_coord > 3):
+                return False
+        if (self.orientation == 'h'):
+            if (x_coord < 0 or x_coord > 2 or y_coord < 0 or y_coord > 4):
+                return False
+        if (self.orientation == 'v'): 
+            if (x_coord < 0 or x_coord > 3 or y_coord < 0 or y_coord > 3):
+                return False
+        return True
+
 
 class Board:
     """
@@ -198,6 +218,145 @@ def man_dist(state):
 
     return distance
 
+def add_succesor(state, successors, i, x_coord, y_coord):
+    """
+    Add a new successor to the successor list.
+    """
+    new_pieces = copy.deepcopy(state.board.pieces)
+    is_goal = state.board.pieces[i].is_goal
+    is_single = state.board.pieces[i].is_single
+    orientation = state.board.pieces[i].orientation
+    new_pieces.pop(i)
+    new_pieces.append(Piece(is_goal, is_single, x_coord, y_coord, orientation))
+    new_board = Board(new_pieces)
+    new_state = State(new_board, 0, state.depth + 1, state)
+    successors.append(new_state)
+    #db
+    # print('BOARD check\n')
+    # state.board.display()
+    # print('successors after 1 board added\n')
+    # for new_states in successors:
+    #     new_states.board.display()
+
+
+
+def gen_successors(state): 
+    """
+    Generate the successors of the current state.
+
+    :param state: The current state.
+    :type state: State
+    :return: The successors of the current state.
+    :rtype: list[State]
+    """
+
+    successors = []
+    i = 0
+    for piece in state.board.pieces:
+
+        # single piece
+        if piece.is_single:
+            # space above
+            if piece.move_valid(piece.coord_x, piece.coord_y - 1):
+                if state.board.grid[piece.coord_y - 1][piece.coord_x] == '.':
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y - 1)
+
+            # space below    
+            if piece.move_valid(piece.coord_x, piece.coord_y + 1):
+                if state.board.grid[piece.coord_y + 1][piece.coord_x] == '.': 
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y + 1)
+                    
+            # space left    
+            if piece.move_valid(piece.coord_x - 1, piece.coord_y):
+                if state.board.grid[piece.coord_y][piece.coord_x - 1] == '.': 
+                    add_succesor(state, successors, i, piece.coord_x - 1, piece.coord_y)
+                    
+            # space right
+            if piece.move_valid(piece.coord_x + 1, piece.coord_y):
+                if state.board.grid[piece.coord_y][piece.coord_x + 1] == '.':
+                    add_succesor(state, successors, i, piece.coord_x + 1, piece.coord_y)
+                    
+        
+        # vertical piece
+        if piece.orientation == 'v': 
+            # space above
+            if piece.move_valid(piece.coord_x, piece.coord_y - 1):
+                if state.board.grid[piece.coord_y - 1][piece.coord_x] == '.':
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y - 1)
+
+            # space below    
+            if piece.move_valid(piece.coord_x, piece.coord_y + 1):
+                if state.board.grid[piece.coord_y + 2][piece.coord_x] == '.': 
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y + 1)
+                    
+            # space left    
+            if piece.move_valid(piece.coord_x - 1, piece.coord_y):
+                if (state.board.grid[piece.coord_y][piece.coord_x - 1] == '.'
+                and state.board.grid[piece.coord_y + 1][piece.coord_x - 1] == '.'): 
+                    add_succesor(state, successors, i, piece.coord_x - 1, piece.coord_y)
+                    
+            # space right
+            if piece.move_valid(piece.coord_x + 1, piece.coord_y):
+                if (state.board.grid[piece.coord_y][piece.coord_x + 1] == '.'
+                and state.board.grid[piece.coord_y + 1][piece.coord_x + 1] == '.'):
+                    add_succesor(state, successors, i, piece.coord_x + 1, piece.coord_y)
+
+        # horizontal piece
+        if piece.orientation == 'h':
+            # space above
+            if piece.move_valid(piece.coord_x, piece.coord_y - 1):
+                if (state.board.grid[piece.coord_y - 1][piece.coord_x] == '.'
+                and state.board.grid[piece.coord_y - 1][piece.coord_x + 1] == '.'):
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y - 1)
+
+            # space below    
+            if piece.move_valid(piece.coord_x, piece.coord_y + 1):
+                if (state.board.grid[piece.coord_y + 1][piece.coord_x] == '.'
+                and state.board.grid[piece.coord_y + 1][piece.coord_x + 1] == '.'):
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y + 1)
+                    
+            # space left 
+            if piece.move_valid(piece.coord_x - 1, piece.coord_y):
+                if state.board.grid[piece.coord_y][piece.coord_x - 1] == '.': 
+                    add_succesor(state, successors, i, piece.coord_x - 1, piece.coord_y)
+                    
+            # space right
+            if piece.move_valid(piece.coord_x + 1, piece.coord_y):
+                if state.board.grid[piece.coord_y][piece.coord_x + 2] == '.':
+                    add_succesor(state, successors, i, piece.coord_x + 1, piece.coord_y)
+        
+        # goal piece 
+        if piece.is_goal: 
+            # space above
+            if piece.move_valid(piece.coord_x, piece.coord_y - 1):
+                if (state.board.grid[piece.coord_y - 1][piece.coord_x] == '.'
+                and state.board.grid[piece.coord_y - 1][piece.coord_x + 1] == '.'):
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y - 1)
+
+            # space below    
+            if piece.move_valid(piece.coord_x, piece.coord_y + 1):
+                if (state.board.grid[piece.coord_y + 2][piece.coord_x] == '.'
+                and state.board.grid[piece.coord_y + 2][piece.coord_x + 1] == '.'): 
+                    add_succesor(state, successors, i, piece.coord_x, piece.coord_y + 1)
+                    
+            # space left    
+            if piece.move_valid(piece.coord_x - 1, piece.coord_y):
+                if (state.board.grid[piece.coord_y][piece.coord_x - 1] == '.'
+                and state.board.grid[piece.coord_y + 1][piece.coord_x - 1] == '.'): 
+                    add_succesor(state, successors, i, piece.coord_x - 1, piece.coord_y)
+                    
+            # space right
+            if piece.move_valid(piece.coord_x + 1, piece.coord_y):
+                if (state.board.grid[piece.coord_y][piece.coord_x + 2] == '.'
+                and state.board.grid[piece.coord_y + 1][piece.coord_x + 2] == '.'):
+                    add_succesor(state, successors, i, piece.coord_x + 1, piece.coord_y)
+
+        i += 1
+    
+    # for new_states in successors:
+    #     print(" ")
+    #     new_states.board.display()
+    # return successors
 
 if __name__ == "__main__":
     '''
@@ -232,9 +391,10 @@ if __name__ == "__main__":
     #db
     # for piece in board.pieces:
     #     print(piece)
-    board.display()
+    #board.display()
+    gen_successors(state)
     #print(state.test_goal())
-    print(man_dist(state))
+    #print(man_dist(state))
 
 
 

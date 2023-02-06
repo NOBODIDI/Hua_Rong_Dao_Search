@@ -389,25 +389,25 @@ def dfs(state):
     rq: implement pruning later
     """
     frontier = [state] # keep this a list
-    explored = [] # make this a set
+    explored = set() # make this a set
+    # is frontier empty? 
     while frontier:
+        # select and remove state Curr from frontier
         state = frontier.pop()
-        explored.append(state)
-        if state.test_goal():
-            return state
-        successors = gen_successors(state)
-
-        for successor in successors:
-            unique = True
-            for explored_state in explored:
-                # print(successor.id)
-                # print(explored_state.id)
-                # print('')
-                if successor.id == explored_state.id:
-                    unique = False
-            if unique:
+        # is Curr in explored? 
+        if (state.id not in explored):
+            # add Curr to explored
+            explored.add(state.id)
+            # is Curr a goal state? 
+            if state.test_goal():
+                # return Curr
+                return state
+            # add Curr's successors to frontier
+            successors = gen_successors(state)
+            for successor in successors:
                 frontier.append(successor)
     return None
+
 
 
 if __name__ == "__main__":

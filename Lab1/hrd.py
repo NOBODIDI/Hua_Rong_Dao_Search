@@ -438,7 +438,7 @@ if __name__ == "__main__":
     # read the board from the file
     board = read_from_file(args.inputfile)
     '''
-    board = read_from_file('test1.txt')
+    board = read_from_file('test2.txt')
     state = State(board, 0, 0)
     #db
     # for piece in board.pieces:
@@ -448,7 +448,7 @@ if __name__ == "__main__":
     solution = get_solution(fin_state)
     i = 0
     for state in solution:
-        print(i)
+        #print(i)
         state.board.display()
         print(' ')
         i += 1

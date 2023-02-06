@@ -5,6 +5,7 @@ import time
 import argparse
 import sys
 
+
 #====================================================================================
 
 char_goal = '1'
@@ -110,6 +111,15 @@ class Board:
                     self.grid[piece.coord_y][piece.coord_x] = '^'
                     self.grid[piece.coord_y + 1][piece.coord_x] = 'v'
 
+    def construct_hash(self):
+        hash = ''
+        for i, line in enumerate(self.grid):
+            for ch in line:
+                hash += ch
+        #db
+        #print (hash)
+        return hash
+
     def display(self):
         """
         Print out the current board.
@@ -117,6 +127,7 @@ class Board:
         """
         for i, line in enumerate(self.grid):
             for ch in line:
+                
                 print(ch, end='')
             print()
         
@@ -144,7 +155,8 @@ class State:
         self.f = f
         self.depth = depth
         self.parent = parent
-        self.id = hash(board)  # The id for breaking ties.
+        self.id = self.board.construct_hash()
+        # self.id = hash(board)  # The id for breaking ties.
 
     def test_goal(self):
         """
@@ -354,9 +366,49 @@ def gen_successors(state):
         i += 1
     
     # for new_states in successors:
-    #     print(" ")
-    #     new_states.board.display()
-    # return successors
+    #      print(new_states.id)
+    #      print(" ")
+    #      new_states.board.display()
+    return successors
+
+def get_solution(state):
+    """
+    Returns a list of states that lead to a solution
+    """
+    solution = []
+    while state.parent:
+        solution.append(state)
+        state = state.parent
+    solution.append(state)
+    return solution[::-1]
+
+def dfs(state):
+    """
+    Depth-first search algorithm 
+    
+    rq: implement pruning later
+    """
+    frontier = [state] # keep this a list
+    explored = [] # make this a set
+    while frontier:
+        state = frontier.pop()
+        explored.append(state)
+        if state.test_goal():
+            return state
+        successors = gen_successors(state)
+
+        for successor in successors:
+            unique = True
+            for explored_state in explored:
+                # print(successor.id)
+                # print(explored_state.id)
+                # print('')
+                if successor.id == explored_state.id:
+                    unique = False
+            if unique:
+                frontier.append(successor)
+    return None
+
 
 if __name__ == "__main__":
     '''
@@ -390,9 +442,22 @@ if __name__ == "__main__":
     state = State(board, 0, 0)
     #db
     # for piece in board.pieces:
-    #     print(piece)
-    #board.display()
-    gen_successors(state)
+    #      print(piece)
+    
+    fin_state = dfs(state)
+    solution = get_solution(fin_state)
+    i = 0
+    for state in solution:
+        print(i)
+        state.board.display()
+        print(' ')
+        i += 1
+    #board.construct_hash()
+    #print(state.id)
+    # str = str(board.display())
+    # print(str)
+    #gen_successors(state)
+
     #print(state.test_goal())
     #print(man_dist(state))
 

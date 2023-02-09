@@ -11,6 +11,9 @@ import sys
 char_goal = '1'
 char_single = '2'
 
+#db
+start = time.time()
+
 class Piece:
     """
     This represents a piece on the Hua Rong Dao puzzle.
@@ -482,6 +485,9 @@ if __name__ == "__main__":
         output_file.write('\n')
         # i += 1
     output_file.close()
+
+    end = time.time()
+    print(end - start)
 
 
 

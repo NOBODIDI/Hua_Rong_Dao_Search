@@ -86,7 +86,6 @@ class Board:
     def __construct_grid(self):
         """
         Called in __init__ to set up a 2-d grid based on the piece location information.
-
         """
 
         for i in range(self.height):
@@ -113,15 +112,13 @@ class Board:
 
     def construct_hash(self):
         """
-        Construct a hash value for a state.
+        Construct a unique value to hash for a state.
+        This value is made from the current board characters. 
         """
         hash = ''
         for i, line in enumerate(self.grid):
             for ch in line:
                 hash += ch
-        #db
-        # is this the most efficient way? 
-        #print (hash)
         return hash
 
     def display(self):
@@ -130,18 +127,19 @@ class Board:
         """
         for i, line in enumerate(self.grid):
             for ch in line:
-                
                 print(ch, end='')
             print()
     
     def display_file(self, file):
         """
         Print out the current board to output file.
+        This is the same as the display function, but it outputs the board to a file instead. 
         """
         for i, line in enumerate(self.grid):
             for ch in line:
                 file.write(ch)
             file.write('\n')
+
 
 class State:
     """
@@ -172,7 +170,6 @@ class State:
     def test_goal(self):
         """
         Test if the current state is the goal state.
-
         :return: True if the current state is the goal state and False otherwise.
         :rtype: bool
         """
@@ -189,7 +186,6 @@ class State:
 def read_from_file(filename):
     """
     Load initial board from a given file.
-
     :param filename: The name of the given file.
     :type filename: str
     :return: A loaded board
@@ -227,18 +223,18 @@ def read_from_file(filename):
 def man_dist(state): 
     """
     Calculate the Manhattan distance of the current state.
-
+    Man distance is the distance of the 2*2 piece to the exit
     :param state: The current state.
     :type state: State
-    :return: The manhattan distance of the current state.
+    :return: The Manhattan distance of the current state.
     :rtype: int
     """
 
-    distance = 1
+    dist = 1
     for piece in state.board.pieces:
         if piece.is_goal:
             distance = abs(3 - piece.coord_y) + abs(1 - piece.coord_x)
-    return distance
+    return dist
 
 def add_succesor(state, successors, i, x_coord, y_coord):
     """
@@ -261,19 +257,11 @@ def add_succesor(state, successors, i, x_coord, y_coord):
     if args.algo == 'astar':
         new_state.f = man_dist(new_state) + new_state.depth
     successors.append(new_state)
-    #db
-    # print('BOARD check\n')
-    # state.board.display()
-    # print('successors after 1 board added\n')
-    # for new_states in successors:
-    #     new_states.board.display()
-
 
 
 def gen_successors(state): 
     """
     Generate the successors of the current state.
-
     :param state: The current state.
     :type state: State
     :return: The successors of the current state.
@@ -282,6 +270,7 @@ def gen_successors(state):
 
     successors = []
     i = 0
+    
     for piece in state.board.pieces:
 
         # single piece
@@ -380,13 +369,7 @@ def gen_successors(state):
                 if (state.board.grid[piece.coord_y][piece.coord_x + 2] == '.'
                 and state.board.grid[piece.coord_y + 1][piece.coord_x + 2] == '.'):
                     add_succesor(state, successors, i, piece.coord_x + 1, piece.coord_y)
-
         i += 1
-    
-    # for new_states in successors:
-    #      print(new_states.id)
-    #      print(" ")
-    #      new_states.board.display()
     return successors
 
 def get_solution(state):
@@ -403,8 +386,6 @@ def get_solution(state):
 def dfs(state):
     """
     Depth-first search algorithm 
-    
-    rq: implement pruning later
     """
     frontier = [state] # keep this a list
     explored = set() # make this a set
@@ -448,6 +429,7 @@ def astar(state):
             successors = gen_successors(state)
             for successor in successors:
                 frontier.append(successor)
+            # sort frontier by function value 
             frontier.sort(key=lambda x: x.f)
     return None
 
@@ -477,8 +459,6 @@ if __name__ == "__main__":
 
     # read the board from the file
     board = read_from_file(args.inputfile)
-    #db
-    # board = read_from_file('test2.txt')
 
     if args.algo == 'dfs':
         state = State(board, 0, 0)
@@ -489,17 +469,18 @@ if __name__ == "__main__":
         state.f = man_dist(state)
         fin_state = astar(state)
 
+    # get the solution
     solution = get_solution(fin_state)
 
+    # output solution to file
     output_file = open(args.outputfile, "w")
-    i = 0
+    #db 
+    # i = 0
     for state in solution:
-        #db
-        # output_file.write(str(i))
-        # output_file.write('\n')
+        # output_file.write(str(i) + '\n')
         state.board.display_file(output_file)
         output_file.write('\n')
-        i += 1
+        # i += 1
     output_file.close()
 
 

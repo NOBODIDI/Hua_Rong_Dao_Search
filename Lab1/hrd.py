@@ -112,25 +112,36 @@ class Board:
                     self.grid[piece.coord_y + 1][piece.coord_x] = 'v'
 
     def construct_hash(self):
+        """
+        Construct a hash value for a state.
+        """
         hash = ''
         for i, line in enumerate(self.grid):
             for ch in line:
                 hash += ch
         #db
+        # is this the most efficient way? 
         #print (hash)
         return hash
 
     def display(self):
         """
         Print out the current board.
-
         """
         for i, line in enumerate(self.grid):
             for ch in line:
                 
                 print(ch, end='')
             print()
-        
+    
+    def display_file(self, file):
+        """
+        Print out the current board to output file.
+        """
+        for i, line in enumerate(self.grid):
+            for ch in line:
+                file.write(ch)
+            file.write('\n')
 
 class State:
     """
@@ -155,7 +166,7 @@ class State:
         self.f = f
         self.depth = depth
         self.parent = parent
-        self.id = self.board.construct_hash()
+        self.id = hash(self.board.construct_hash())
         # self.id = hash(board)  # The id for breaking ties.
 
     def test_goal(self):
@@ -227,21 +238,28 @@ def man_dist(state):
     for piece in state.board.pieces:
         if piece.is_goal:
             distance = abs(3 - piece.coord_y) + abs(1 - piece.coord_x)
-
     return distance
 
 def add_succesor(state, successors, i, x_coord, y_coord):
     """
     Add a new successor to the successor list.
     """
+    # creating a deep copy of the board pieces
     new_pieces = copy.deepcopy(state.board.pieces)
+    # copying attributes of the piece to be moved
     is_goal = state.board.pieces[i].is_goal
     is_single = state.board.pieces[i].is_single
     orientation = state.board.pieces[i].orientation
+    # pop the old piece
     new_pieces.pop(i)
+    # add the new piece
     new_pieces.append(Piece(is_goal, is_single, x_coord, y_coord, orientation))
+    # create a new board
     new_board = Board(new_pieces)
     new_state = State(new_board, 0, state.depth + 1, state)
+    # calculate the f value if astar
+    if args.algo == 'astar':
+        new_state.f = man_dist(new_state) + new_state.depth
     successors.append(new_state)
     #db
     # print('BOARD check\n')
@@ -408,10 +426,33 @@ def dfs(state):
                 frontier.append(successor)
     return None
 
-
+def astar(state):
+    """
+    A* search algorithm
+    """
+    frontier = [state] # keep this a list
+    explored = set() # make this a set
+    # is frontier empty? 
+    while frontier:
+        # select and remove state Curr from frontier
+        state = frontier.pop(0)
+        # is Curr in explored? 
+        if (state.id not in explored):
+            # add Curr to explored
+            explored.add(state.id)
+            # is Curr a goal state? 
+            if state.test_goal():
+                # return Curr
+                return state
+            # add Curr's successors to frontier
+            successors = gen_successors(state)
+            for successor in successors:
+                frontier.append(successor)
+            frontier.sort(key=lambda x: x.f)
+    return None
 
 if __name__ == "__main__":
-    '''
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--inputfile",
@@ -434,32 +475,32 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-
     # read the board from the file
     board = read_from_file(args.inputfile)
-    '''
-    board = read_from_file('test2.txt')
-    state = State(board, 0, 0)
     #db
-    # for piece in board.pieces:
-    #      print(piece)
-    
-    fin_state = dfs(state)
+    # board = read_from_file('test2.txt')
+
+    if args.algo == 'dfs':
+        state = State(board, 0, 0)
+        fin_state = dfs(state)
+    elif args.algo == 'astar':
+        state = State(board, 0, 0)
+        # do we need to give a f value to the initial state?
+        state.f = man_dist(state)
+        fin_state = astar(state)
+
     solution = get_solution(fin_state)
+
+    output_file = open(args.outputfile, "w")
     i = 0
     for state in solution:
-        #print(i)
-        state.board.display()
-        print(' ')
+        #db
+        # output_file.write(str(i))
+        # output_file.write('\n')
+        state.board.display_file(output_file)
+        output_file.write('\n')
         i += 1
-    #board.construct_hash()
-    #print(state.id)
-    # str = str(board.display())
-    # print(str)
-    #gen_successors(state)
-
-    #print(state.test_goal())
-    #print(man_dist(state))
+    output_file.close()
 
 
 

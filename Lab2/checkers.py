@@ -60,11 +60,11 @@ class State:
         """
         for i in self.board:
             for j in i:
-                file.write(j, end="")
+                file.write(j)
             file.write('\n')
         file.write('\n')
 
-    def end_state(self, turn, ret_successors = False):
+    def end_state_successors(self, turn):
         """
         Checks if the game has ended
         :param turn: The current turn
@@ -76,21 +76,25 @@ class State:
         """
         # if there are no more black or red pieces on the board, end of the game
         if self.red_list == [] or self.black_list == []:
-            if ret_successors:
                 return True, []
-            else:
-                return True
             
         # if there are no more possible moves for the current player, end of the game
         next_moves = gen_successors(self, turn)
         if next_moves == []:
-            if ret_successors:
-                return True, next_moves
-            
-        if ret_successors:
-            return False, next_moves
-        else:
-            return False
+            return True, next_moves
+        return False, next_moves
+        
+    
+    def end_state(self, turn):
+        """
+        Checks if the game has ended
+        """
+        # db
+        # print(self.end_state_successors(turn)[0])
+        successors = gen_successors(self, turn)
+        if self.red_list == [] or self.black_list == [] or not successors:
+            return True
+        return False
         
     def pawn2king(self, turn):
         """
@@ -124,7 +128,7 @@ def get_next_turn(curr_turn):
         return 'r'
 
 def move_valid(y,x): 
-    if x < 0 or x > 8 or y < 0 or y > 8:
+    if x < 0 or x >= 8 or y < 0 or y >= 8:
         return False
     return True
 
@@ -153,12 +157,19 @@ def move(state, piece, turn):
         pot_moves = [(y - 1, x - 1), (y - 1, x + 1), (y + 1, x - 1), (y + 1, x + 1)]
 
     for move in pot_moves:
+        # print(move[0])
+        # print(move[1])
         if move_valid(move[0], move[1]):
+            # db
+            # print (state.board[move[0]][move[1]])
+            # state.display()
             if state.board[move[0]][move[1]] == '.':
                 new_board = copy.deepcopy(state.board)
                 # db 
                 # will there be a problem because y and x are in a tuple? 
                 new_board[y][x] = '.'
+                # db
+                # print(turn)
                 if is_pawn:
                     new_board[move[0]][move[1]] = turn
                 else:
@@ -175,7 +186,7 @@ def jump(state, origin, piece, turn, successors):
     # True if a jump happens
     hop = False
     # a list of list of successors
-    successors = []
+    successors = pot_moves = []
     (y,x), is_pawn = piece
 
     if is_pawn: 
@@ -238,6 +249,9 @@ def gen_successors(state, turn):
     if successors == []: 
         successors += move(state, piece, turn)
 
+    # for s in successors:
+    #     print ("st")
+    #     s.display()
     return successors
 
 def get_utility(state, turn, player, depth):
@@ -318,10 +332,11 @@ def get_max(state, depth, turn, player, cache, alpha, beta):
     """
     Get the max value of the current state
     """
+    
     if state in cache.keys():
         is_end, successors = cache[state]
     else:
-        is_end, successors  = state.end_state(turn, True)
+        is_end, successors  = state.end_state_successors(turn)
         cache[state] = (is_end, successors)
 
     if is_end:
@@ -332,7 +347,7 @@ def get_max(state, depth, turn, player, cache, alpha, beta):
     successors = sorted(successors, key=lambda x: heuristic(x, player, depth), reverse=True)
     for successor in successors:
         successor.parent = state
-        min_val = get_min(successor, depth - 1, get_opp_char(turn), player, cache, alpha, beta)
+        min_val = get_min(successor, depth - 1, get_next_turn(turn), player, cache, alpha, beta)
         if min_val[0] > v[0]:
             v = min_val
         if v[0] >= beta:
@@ -347,7 +362,7 @@ def get_min(state, depth, turn, player, cache, alpha, beta):
     if state in cache.keys():
         is_end, successors = cache[state]
     else:
-        is_end, successors  = state.end_state(turn, True)
+        is_end, successors  = state.end_state_successors(turn)
         cache[state] = (is_end, successors)
 
     if is_end:
@@ -358,7 +373,7 @@ def get_min(state, depth, turn, player, cache, alpha, beta):
     successors = sorted(successors, key=lambda x: heuristic(x, player, depth))
     for successor in successors:
         successor.parent = state
-        max_val = get_max(successor, depth - 1, get_opp_char(turn), player, cache, alpha, beta)
+        max_val = get_max(successor, depth - 1, get_next_turn(turn), player, cache, alpha, beta)
         if max_val[0] < v[0]:
             v = max_val
         if v[0] <= alpha:
@@ -381,18 +396,34 @@ def minimax(state, depth, turn, player, is_iter = False, cache = {}):
     :param is_iter: Whether the function is called by iterative deepening
     :type is_iter: bool
     """
-    v = get_max(state, depth, turn, player, cache, -float('inf'), float('inf')) 
-    return v[1]
-     
+    v = get_max(state, depth, turn, player, cache, -float('inf'), float('inf'))
+    final_state = v[1]
+    while final_state.parent != state and final_state != state:
+        final_state = final_state.parent
+    return final_state
+    # print(final_state)
+    # try:
+    #     while final_state.parent != state and final_state != state:
+    #         final_state = final_state.parent
+    #     return final_state
+    # except:
+    #     print(v)
+    #     print(state)
+    #     exit()
+    
 def do_game(state, player, depth): 
     """
     Play the game
     """
     solution = [state]
-    while not state.end_state(turn, False):
+    turn = player
+    # db
+    # print (flag)
+
+    while state.end_state(turn) != True:
         state = minimax(state, depth, turn, player)
         solution.append(state)
-        player = get_opp_char(player)
+        player = get_next_turn(player)
         turn = player
         # state.display()
     return solution[ : : -1]
@@ -420,29 +451,12 @@ if __name__ == '__main__':
     turn =  player = 'r'
     ctr = 0
 
-    solution = do_game(state, player, 3)
+    solution = do_game(state, player, 2)
 
     output_file = open(args.outputfile, "w")
-    for state in solution: 
-        state.display_file(output_file)
+
+    # state.display_file(output_file)
+    for s in solution: 
+        s.display_file(output_file)
         output_file.write('\n')
     output_file.close()
-
-    """
-    sys.stdout = open(args.outputfile, 'w')
-
-    sys.stdout = sys.__stdout__
-
-    initial_board = read_from_file("test2.txt")
-    state = State(board = initial_board)
-    turn = player = 'r'
-    ctr = 0
-    successors = gen_successors(state, 'r')
-    for s in successors:
-        s.display()
-    
-    #state.display()
-    # print(len(state.board))
-    # char = ['r', 'R']
-    # print(get_opp_char(char))
-    """

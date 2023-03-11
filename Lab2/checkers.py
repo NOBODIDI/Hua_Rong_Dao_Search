@@ -242,7 +242,7 @@ def get_utility(state, turn, player, depth):
     """
     red_score = len(state.red_list)
     black_score = len(state.black_list)
-    value = 100000 * (depth+1)
+    value = 100000  * (depth + 1)
     if red_score == 0:
         if player == 'r':
             return -value

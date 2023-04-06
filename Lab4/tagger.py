@@ -19,9 +19,10 @@ def read_training_files(training_list):
     """
 
     """
+    fileToWord = time.time()
+
     words = []
     counter = 0
-
     for file in training_list:
         print("Reading training file: {}".format(file))
         f = open(file)
@@ -31,6 +32,10 @@ def read_training_files(training_list):
             l = str.strip(str(l))
             words.append(l)
             counter += 1
+        f.close()
+
+    print("Time to read training files: {}".format(time.time() - fileToWord))
+    wordToDict = time.time()
 
     M = dict()
     for i in range(len(TAGS)): 
@@ -46,17 +51,15 @@ def read_training_files(training_list):
         else:
             M[TAGS[POSWord]][words[i][0]] = 1
 
-    # wordsInPOS = []
-    # for i in range(len(M)): 
-    #     wordsInPOS.append(len(M[TAGS[i]]))
-    # print(wordsInPOS)
-
     for i in range(len(M)):
         for key in M[TAGS[i]]:
             M[TAGS[i]][key] = M[TAGS[i]][key] / frequencyOfTag[i]
 
     for i in range(len(frequencyOfTag)):
         frequencyOfTag[i] = frequencyOfTag[i] / len(words)
+    
+    print("Time to create dictionary: {}".format(time.time() - wordToDict))
+    wordToInit = time.time()
 
     initialWords = dict()
     for i in range(len(words)):
@@ -72,20 +75,34 @@ def read_training_files(training_list):
         I[i] = sum(value == TAGS[i] for value in initialWords.values()) / len(initialWords)
     # print(I)
 
+    print("Time to create initial POS matrix: {}".format(time.time() - wordToInit))
+    wordToTrans = time.time()
+
     T = [[0 for i in range(len(TAGS))] for j in range(len(TAGS))]
-    # print(len(T))
-    # print(len(T[0]))
-    for i in range(len(TAGS)):
-        for j in range(len(TAGS)): 
-            for k in range(len(words)):
-                if words[k][1] == TAGS[i] and k != len(words) - 1 and words[k + 1][1] == TAGS[j]:
-                    T[i][j] += 1
-    # print (T[19][19])        
+    # count = 0
+    for k in range(len(words) - 1):
+        # count += 1
+        word = words[k][1]
+        next_word = words[k + 1][1]
+        # if word in TAGS and next_word in TAGS:
+        i = TAGS.index(word)
+        j = TAGS.index(next_word)
+        T[i][j] += 1
+    # print(count)
+    # print (T[19][19])      
+
+    print("Time to create transition matrix: {}".format(time.time() - wordToTrans))
 
     # print(I)
+    # print("sum of list: {}".format(sum(I)))
     # print(T)
+    # m = 0
+    # for i in range(len(T)):
+    #     print("sum of row: {}".format(sum(T[i])))
+    #     m += sum(T[i])
+    # print(m)
     # print(M)
-    f.close()
+
     return frequencyOfTag, I, M, T
 
 # read the testing file

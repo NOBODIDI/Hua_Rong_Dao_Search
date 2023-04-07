@@ -14,6 +14,7 @@ TAGS = ["AJ0", "AJC", "AJS", "AT0", "AV0", "AVP", "AVQ", "CJC", "CJS", "CJT", "C
         'NN1-VVG', 'NN2-VVZ', 'VVD-VVN', 'AV0-AJ0', 'VVN-AJ0', 'VVD-AJ0', 'NN1-AJ0', 'VVG-AJ0', 'PRP-AVP',
         'CJS-AVQ', 'PRP-CJS', 'DT0-CJT', 'PNI-CRD', 'NP0-NN1', 'VVB-NN1', 'VVG-NN1', 'VVZ-NN2', 'VVN-VVD']
 
+
 # read the training file
 def read_training_files(training_list):
     """
@@ -54,10 +55,8 @@ def read_training_files(training_list):
     for i in range(len(M)):
         for key in M[TAGS[i]]:
             M[TAGS[i]][key] = M[TAGS[i]][key] / frequencyOfTag[i]
-
-    for i in range(len(frequencyOfTag)):
-        frequencyOfTag[i] = frequencyOfTag[i] / len(words)
     
+
     print("Time to create dictionary: {}".format(time.time() - wordToDict))
     wordToInit = time.time()
 
@@ -88,8 +87,23 @@ def read_training_files(training_list):
         i = TAGS.index(word)
         j = TAGS.index(next_word)
         T[i][j] += 1
+    
+    # T = np.array(T)
+    for i in range(len(T)):
+        for j in range(len(T[i])):
+            if T[i][j] != 0:
+                T[i][j] = T[i][j] / frequencyOfTag[i]
+
+    
     # print(count)
-    # print (T[19][19])      
+    # print (T[19][19]) 
+
+    # c = 0
+    # for i in range(len(T)):
+    #     for j in range(len(T[i])):
+    #         c += T[i][j]
+    #     print(c)
+    #     c = 0
 
     print("Time to create transition matrix: {}".format(time.time() - wordToTrans))
 
@@ -99,9 +113,10 @@ def read_training_files(training_list):
     # m = 0
     # for i in range(len(T)):
     #     print("sum of row: {}".format(sum(T[i])))
-    #     m += sum(T[i])
-    # print(m)
     # print(M)
+
+    for i in range(len(frequencyOfTag)):
+        frequencyOfTag[i] = frequencyOfTag[i] / len(words)
 
     return frequencyOfTag, I, M, T
 
@@ -148,6 +163,67 @@ def read_testing_file(file):
     f.close()
     return E
 
+def Viterbi(frequencyOfTag, E, S, I, T, M): 
+    """
+    """
+    count = 0
+    for t in range(len(E)):
+        prob = [[0]* len(TAGS) for x in range(len(E[t]))] 
+        prev = [[0]* len(TAGS) for x in range(len(E[t]))]
+
+        # print(prob)
+        # print(len(prob))
+        # print(E[t][0])
+        p1 = []
+        for j in range(len(TAGS)):
+            # print(TAGS[j])
+            if E[t][0] in M[TAGS[j]]:
+                # print(M[TAGS[j]][E[i][0]])
+                p1.append(j)
+
+        if len(p1) == 0:
+            for j in range(len(TAGS)):
+                prob[0][j] = I[j] * frequencyOfTag[j]
+        else: 
+            for j in range(len(p1)):
+                # print(E[t][0])
+                prob[0][p1[j]] = I[p1[j]] * M[TAGS[p1[j]]][E[t][0]]    
+                # print(prob[0][p1[j]])
+
+        # print(prob)
+        p2 = [[] for x in range(len(E[t]))]
+        # print(p2)
+        for i in range(1, len(E[t])):
+            for k in range(len(TAGS)):
+                if E[t][i] in M[TAGS[k]]:
+                    # print(E[t][i])
+                    # print(M[TAGS[j]][E[i][0]])
+                    (p2[i]).append(k)
+        # print(p2)
+        if len(p2) == 0:
+            for i in range(1, len(E[t])):
+                for k in range(len(TAGS)):
+                    # print('unknown')
+                    prob[i][k] = max(prob[i - 1][j] * T[j][k] * frequencyOfTag[k] for j in range(len(TAGS)))
+        else:
+            for i in range(1, len(E[t])):
+                for k in range(len(p2[i])): 
+                    # print(TAGS[p2[i][k]])
+                    probTemp = 0
+                    for j in range(len(p2[i - 1])):
+                        # print(prob[i - 1][j])
+                        # print(T[j][p2[i][k]])
+                        # print(M[TAGS[p2[i][k]]][E[t][i]])
+                        if probTemp < prob[i - 1][j] * T[j][p2[i][k]] * M[TAGS[p2[i][k]]][E[t][i]]:
+                            probTemp = prob[i - 1][j] * T[j][p2[i][k]] * M[TAGS[p2[i][k]]][E[t][i]]
+                    prob[i][p2[i][k]] = probTemp
+                    # prob[i][p2[i][k]] = max(prob[i - 1][j] * T[j][p2[i][k]] * M[TAGS[p2[i][k]]][E[t][i]] for j in range(len(p2[i - 1])))
+                    # print(prob[i][p2[i][k]])
+
+        print()
+
+    return S
+
 
 
 if __name__ == '__main__':
@@ -191,7 +267,7 @@ if __name__ == '__main__':
     for i in range(len(E)):
         S.append([])
         for j in range(len(E[i])):
-            S[i].append("NP0")     # change when implementing Viterbi
+            S[i].append("")     # change when implementing Viterbi
     # print(S)
     # print(len(S))
     # print(len(S[0]) + len(S[1]))
@@ -200,7 +276,7 @@ if __name__ == '__main__':
     print("Time to learn the model: {} seconds".format(learningTime))
 
     # Implement Viterbi algorithm for each sentence in E
-    # S = Viterbi(E, S, I, T, M): 
+    S = Viterbi(frequencyOfTag, E, S, I, T, M)
 
     print("output file is {}".format(args.outputfile))
 

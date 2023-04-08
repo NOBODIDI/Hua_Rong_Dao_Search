@@ -1,8 +1,11 @@
 import os
 import sys
 import argparse
+from copy import deepcopy
 import numpy as np
 import time
+
+e = 0.00101
 
 TAGS = ["AJ0", "AJC", "AJS", "AT0", "AV0", "AVP", "AVQ", "CJC", "CJS", "CJT", "CRD",
         "DPS", "DT0", "DTQ", "EX0", "ITJ", "NN0", "NN1", "NN2", "NP0", "ORD", "PNI",
@@ -25,59 +28,87 @@ def read_training_files(training_list):
     words = []
     counter = 0
     for file in training_list:
-        print("Reading training file: {}".format(file))
+        # print("Reading training file: {}\n".format(file))
         f = open(file)
         lines = f.readlines()
         for l in lines:
             # if counter < 40: # db
             l = str.strip(str(l))
-            words.append(l)
+            words.append(l.split(" : "))
             counter += 1
         f.close()
+    # print(words)
 
-    print("Time to read training files: {}".format(time.time() - fileToWord))
+    # time
+    # print("Time to read training files: {}\n".format(time.time() - fileToWord))
+    
+    return words
+
+def getM_fTag(words):
+    """
+    
+    """
     wordToDict = time.time()
 
     M = dict()
+    fTag = [0] * len(TAGS)
+    knownWds = dict()
+
     for i in range(len(TAGS)): 
         M[TAGS[i]] = dict()
+        M[TAGS[i]]["TOT"] = 0
     
-    frequencyOfTag = [0] * len(TAGS)
     for i in range(len(words)):
-        words[i] = words[i].split(" : ")
+        knownWds[words[i][0]] = 0
         POSWord = TAGS.index(words[i][1])
-        frequencyOfTag[POSWord] += 1
-        if words[i][0] in M[TAGS[POSWord]]:
-            M[TAGS[POSWord]][words[i][0]] += 1
-        else:
-            M[TAGS[POSWord]][words[i][0]] = 1
+        fTag[POSWord] += 1
+        if words[i][0] not in M[TAGS[POSWord]]:
+            for POS in TAGS:
+                M[POS][words[i][0]] = e
+            # M[TAGS[POSWord]][words[i][0]] = 1
+        M[TAGS[POSWord]][words[i][0]] += 1
+        M[TAGS[POSWord]]["TOT"] += 1
+            
 
-    for i in range(len(M)):
-        for key in M[TAGS[i]]:
-            M[TAGS[i]][key] = M[TAGS[i]][key] / frequencyOfTag[i]
+    for POS in TAGS:
+        for word in M[POS]:
+            if M[POS]["TOT"] != 0:
+                M[POS][word] = M[POS][word] / M[POS]["TOT"]
+    # time 
+    # print("Time to create dictionary: {}\n".format(time.time() - wordToDict))
+    return M, fTag, knownWds
+
+def getI(words):
+    """
     
-
-    print("Time to create dictionary: {}".format(time.time() - wordToDict))
+    """
     wordToInit = time.time()
 
-    initialWords = dict()
+    wCount = 0
+    initArr = [e]*len(TAGS)
     for i in range(len(words)):
-        if  i == 0 or (words[i][0] in [".", "?", "!", "-"] and i != len(words) - 1):
-            # print(words[i + 1][0])
-            # print(words[i + 1][1])
-            initialWords[words[i + 1][0]] = words[i + 1][1]
-
-    words = np.array(words) # keep this? 
-
-    I = [None]*len(TAGS)
+        if  (i == 0 or (words[i][0] in [".", "?", "!", "-"]) and i != len(words) - 1):
+            # initialWords[words[i + 1][0]] = words[i + 1][1]
+            initArr[TAGS.index(words[i + 1][1])] += 1
+            wCount += 1
     for i in range(len(TAGS)):
-        I[i] = sum(value == TAGS[i] for value in initialWords.values()) / len(initialWords)
+        initArr[i] = initArr[i] / wCount
+    
+    I = np.zeros((1, len(TAGS)))
+    for i in range(len(TAGS)): 
+        I[0, i] = max(initArr[i], e)
     # print(I)
+    # print(I.shape)
+    # print("Time to create initial POS matrix: {}\n".format(time.time() - wordToInit))
+    return I
 
-    print("Time to create initial POS matrix: {}".format(time.time() - wordToInit))
+def getT(words):
+    """
+    
+    """
     wordToTrans = time.time()
 
-    T = [[0 for i in range(len(TAGS))] for j in range(len(TAGS))]
+    tran = [[e for i in range(len(TAGS) + 1)] for j in range(len(TAGS))]
     # count = 0
     for k in range(len(words) - 1):
         # count += 1
@@ -86,84 +117,52 @@ def read_training_files(training_list):
         # if word in TAGS and next_word in TAGS:
         i = TAGS.index(word)
         j = TAGS.index(next_word)
-        T[i][j] += 1
+        tran[i][j] += 1
+        tran[i][len(TAGS)] += 1 + e * len(TAGS)
     
-    # T = np.array(T)
-    for i in range(len(T)):
-        for j in range(len(T[i])):
-            if T[i][j] != 0:
-                T[i][j] = T[i][j] / frequencyOfTag[i]
+    T = np.zeros((len(TAGS), len(TAGS)))
+    for i in range(len(tran)):
+        for j in range(len(tran) - 1):
+            tran[i][j] = tran[i][j] / tran[i][len(TAGS)]
+            T[i][j] = tran[i][j]
+            # if T[i][j] == 0:
+            #     print("mark")
 
-    
-    # print(count)
-    # print (T[19][19]) 
-
-    # c = 0
-    # for i in range(len(T)):
-    #     for j in range(len(T[i])):
-    #         c += T[i][j]
-    #     print(c)
-    #     c = 0
-
-    print("Time to create transition matrix: {}".format(time.time() - wordToTrans))
-
-    # print(I)
-    # print("sum of list: {}".format(sum(I)))
     # print(T)
-    # m = 0
-    # for i in range(len(T)):
-    #     print("sum of row: {}".format(sum(T[i])))
-    # print(M)
+    # print(T.shape)
+    # time
+    # print("Time to create transition matrix: {}\n".format(time.time() - wordToTrans))
 
-    for i in range(len(frequencyOfTag)):
-        frequencyOfTag[i] = frequencyOfTag[i] / len(words)
+    return T
 
-    return frequencyOfTag, I, M, T
+def getDistTag(fTag, nbWords):
+    for i in range(len(fTag)):
+        fTag[i] = fTag[i] / nbWords
+        # print(fTag[i])
+    # print(sum(fTag))
+    return fTag
+
 
 # read the testing file
 def read_testing_file(file):
     """
     
     """
-    countWords = 0
-    e = []
-    f = open(file)
-    lines = f.readlines()
-    for l in lines:
-        if countWords < 47: # db
-            l = str.strip(str(l))
-            e.append(l)
-            countWords += 1
-    # print(e)
-    temp = []
-    numSentences = 0
-    
+    with open(file, 'r') as f:
+        testWds = f.read().splitlines()
     E = []
-
-    for i in range(len(e)):
-        # print(e[i])
-        if (i == len(e) - 1 and i != 0): 
-            E[numSentences - 1].append(e[i])
-        if  i == 0 or (e[i] in ['.', '?', '!', '-'] and i != len(e) - 1):
-            if i == 0: j = 0
-            else: 
-                j = i + 1
-                # print(numSentences)
-                E[numSentences - 1].append(e[i])
-
-            while e[j] not in ['.', '?', '!', '-'] and j != len(e) - 1:
-                # print(j)
-                # print(e[j])
-                temp.append(e[j])
-                j += 1
-            E.append(temp)
-            numSentences += 1
-            temp = []
-    # print(E)
-    f.close()
+    numWords = 0
+    temp = []
+    for j in range (len(testWds)): #len(testWds) #2132
+        temp.append(testWds[j])
+        if testWds[j] in ['.', '?', '!', '-']:
+            # numWords += len(temp)
+            E.append(deepcopy(temp))
+            temp = []            
+    # print(numWords)
     return E
 
-def Viterbi(frequencyOfTag, E, S, I, T, M): 
+def Viterbi(distTag, E, S, I, T, M, knownWds): 
     """
     """
     count = 0
@@ -171,9 +170,6 @@ def Viterbi(frequencyOfTag, E, S, I, T, M):
         prob = [[0]* len(TAGS) for x in range(len(E[t]))] 
         prev = [[0]* len(TAGS) for x in range(len(E[t]))]
 
-        # print(prob)
-        # print(len(prob))
-        # print(E[t][0])
         p1 = []
         for j in range(len(TAGS)):
             # print(TAGS[j])
@@ -183,7 +179,7 @@ def Viterbi(frequencyOfTag, E, S, I, T, M):
 
         if len(p1) == 0:
             for j in range(len(TAGS)):
-                prob[0][j] = I[j] * frequencyOfTag[j]
+                prob[0][j] = I[j] * distTag[j]
         else: 
             for j in range(len(p1)):
                 # print(E[t][0])
@@ -197,33 +193,73 @@ def Viterbi(frequencyOfTag, E, S, I, T, M):
             for k in range(len(TAGS)):
                 if E[t][i] in M[TAGS[k]]:
                     # print(E[t][i])
-                    # print(M[TAGS[j]][E[i][0]])
-                    (p2[i]).append(k)
+                    # print(k)
+                    p2[i].append(k)
+        # p2.pop(0)
         # print(p2)
         if len(p2) == 0:
             for i in range(1, len(E[t])):
                 for k in range(len(TAGS)):
                     # print('unknown')
-                    prob[i][k] = max(prob[i - 1][j] * T[j][k] * frequencyOfTag[k] for j in range(len(TAGS)))
+                    prob[i][k] = max(prob[i - 1][j] * T[j][k] * distTag[k] for j in range(len(TAGS)))
         else:
             for i in range(1, len(E[t])):
-                for k in range(len(p2[i])): 
-                    # print(TAGS[p2[i][k]])
-                    probTemp = 0
-                    for j in range(len(p2[i - 1])):
-                        # print(prob[i - 1][j])
-                        # print(T[j][p2[i][k]])
-                        # print(M[TAGS[p2[i][k]]][E[t][i]])
-                        if probTemp < prob[i - 1][j] * T[j][p2[i][k]] * M[TAGS[p2[i][k]]][E[t][i]]:
-                            probTemp = prob[i - 1][j] * T[j][p2[i][k]] * M[TAGS[p2[i][k]]][E[t][i]]
-                    prob[i][p2[i][k]] = probTemp
-                    # prob[i][p2[i][k]] = max(prob[i - 1][j] * T[j][p2[i][k]] * M[TAGS[p2[i][k]]][E[t][i]] for j in range(len(p2[i - 1])))
-                    # print(prob[i][p2[i][k]])
+                for k in p2[i]: 
+                    # print("k: {}".format(k))
+                    x = d = 0
+                    for j in p2[i - 1]:
+                        # print("j: {}".format(j))
+                        # print((prob[i - 1][j] * T[j][k] * M[TAGS[k]][E[t][i]]))
+                        # print(E[t][i]) # db
+                        if d < (prob[i - 1][j] * T[j][k] * M[TAGS[k]][E[t][i]]):
+                            d = prob[i - 1][j] * T[j][k] * M[TAGS[k]][E[t][i]]
+                            x = j
+                    # print(x)
+                    prob[i][k] = prob[i - 1][x] * T[x][k] * M[TAGS[k]][E[t][i]]
+                    prev[i][k] = x
 
-        print()
-
+                # print() #db
+    # print(prob)
     return S
 
+def doViterbi(distTag, sent, I, T, M, knownWds): 
+    tagsForSent = []
+    prob = np.zeros((len(sent), len(TAGS)))
+    prev = np.zeros((len(sent), len(TAGS)))
+
+    for i in range(len(TAGS)):
+        if sent[0] in M[TAGS[i]]:
+            prob[0,i] = I[0,i] * M[TAGS[i]][sent[0]]
+        else:
+            prob[0, i] = I[0, i] * (1 / len(TAGS))   
+        prev[0, i] = None
+
+    for t in range(1, len(sent)):
+        if sent[t] in knownWds:
+            for i in range(len(TAGS)):
+                m = M[TAGS[i]][sent[t]] if sent[t] in M[TAGS[i]] else ((1 / (len(TAGS)-1)))
+                temp = prob[t - 1, :] * T[:, i] * m
+                maxP = np.max(temp)
+                x = np.argmax(temp)
+                prob[t, i] = maxP
+                prev[t, i] = x
+        else:
+            for i in range(len(TAGS)):
+                m = distTag[i]
+                temp = prob[t - 1, :] * T[:, i] * m
+                maxP = np.max(temp)
+                x = np.argmax(temp)
+                prob[t,i] = maxP
+                prev[t,i] = x
+        prob[t, :] = prob[t, :] / np.sum(prob[t, :])
+
+    xP = np.argmax(prob[len(sent) - 1, :])
+    tagsForSent.append(TAGS[int(xP)])
+    for i in range(len(sent) - 1, 0, -1):
+        xP = prev[i, int(xP)]
+        tagsForSent.append(TAGS[int(xP)])
+    tagsForSent.reverse()
+    return tagsForSent
 
 
 if __name__ == '__main__':
@@ -251,41 +287,40 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print("Starting the tagging process.")
-    startTime = time.time()
-
     training_list = args.trainingfiles[0]
     print("training files are {}".format(training_list))
-    # read the training files 
-    frequencyOfTag, I, M, T = read_training_files(training_list)
-    # convert T and I to numpy array? 
-
     print("test file is {}".format(args.testfile))
-    E = read_testing_file(args.testfile)
-    # convert E to numpy array? 
-
-    S = [] 
-    for i in range(len(E)):
-        S.append([])
-        for j in range(len(E[i])):
-            S[i].append("")     # change when implementing Viterbi
-    # print(S)
-    # print(len(S))
-    # print(len(S[0]) + len(S[1]))
-
-    learningTime = time.time() - startTime
-    print("Time to learn the model: {} seconds".format(learningTime))
-
-    # Implement Viterbi algorithm for each sentence in E
-    S = Viterbi(frequencyOfTag, E, S, I, T, M)
-
     print("output file is {}".format(args.outputfile))
+    
+    startTime = time.time()
+
+    words = read_training_files(training_list)
+    M, fTag, knownWds = getM_fTag(words)
+    I = getI(words)
+    T = getT(words)
+    distTag = getDistTag(fTag, len(words))
+    # print(T.shape)
+    # print(len(M))
+    # print(I.shape)
+
+
+    # print("Time to learn the model: {} seconds".format(time.time() - startTime))
+    startTag = time.time()
+
+    E = read_testing_file(args.testfile)
+    S = []
+
+    for sent in E: 
+        S.append(doViterbi(distTag, [wd for wd in sent], I, T, M, knownWds))
 
     outFile = open(args.outputfile, "w")
     for i in range(len(E)):
         for j in range(len(E[i])):
                     outFile.write("{} : {}\n".format(E[i][j], S[i][j]))
     outFile.close()
+    
     # for i in range(len(E)):
     #     for j in range(len(E[i])):
     #         print("{} : {}".format(E[i][j], S[i][j]))
+    # print("Time to tag the test file: {} seconds".format(time.time() - startTag))
 

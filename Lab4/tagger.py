@@ -231,13 +231,16 @@ def doViterbi(distTag, sent, I, T, M, knownWds):
         if sent[0] in M[TAGS[i]]:
             prob[0,i] = I[0,i] * M[TAGS[i]][sent[0]]
         else:
-            prob[0, i] = I[0, i] * (1 / len(TAGS))   
+            prob[0, i] = I[0, i] * (1 / len(TAGS)) 
         prev[0, i] = None
 
     for t in range(1, len(sent)):
         if sent[t] in knownWds:
             for i in range(len(TAGS)):
-                m = M[TAGS[i]][sent[t]] if sent[t] in M[TAGS[i]] else ((1 / (len(TAGS)-1)))
+                if sent[t] in M[TAGS[i]]:
+                    m = M[TAGS[i]][sent[t]]
+                else:
+                    m = 1 / (len(TAGS) - 1)
                 temp = prob[t - 1, :] * T[:, i] * m
                 maxP = np.max(temp)
                 x = np.argmax(temp)
@@ -249,16 +252,16 @@ def doViterbi(distTag, sent, I, T, M, knownWds):
                 temp = prob[t - 1, :] * T[:, i] * m
                 maxP = np.max(temp)
                 x = np.argmax(temp)
-                prob[t,i] = maxP
-                prev[t,i] = x
+                prob[t, i] = maxP
+                prev[t, i] = x
         prob[t, :] = prob[t, :] / np.sum(prob[t, :])
-
     xP = np.argmax(prob[len(sent) - 1, :])
     tagsForSent.append(TAGS[int(xP)])
     for i in range(len(sent) - 1, 0, -1):
         xP = prev[i, int(xP)]
         tagsForSent.append(TAGS[int(xP)])
     tagsForSent.reverse()
+    
     return tagsForSent
 
 

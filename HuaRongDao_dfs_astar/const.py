@@ -1,0 +1,12 @@
+
+
+CHAR_GOAL = '1'
+CHAR_SINGLE = '2'
+CHAR_EMPTY = '.'
+CHAR_VER_UP = '^'
+CHAR_VER_DOWN = 'v'
+CHAR_HOR_LEFT = '<'
+CHAR_HOR_RIGHT = '>'
+
+WIDTH = 4
+HEIGHT = 5

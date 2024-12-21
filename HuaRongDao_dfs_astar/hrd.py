@@ -5,186 +5,15 @@ import time
 import argparse
 import sys
 
+import const
+from board import Board
+from piece import Piece
+from state import State
 
 #====================================================================================
 
-char_goal = '1'
-char_single = '2'
+start = time.time() 
 
-#db
-start = time.time()
-
-class Piece:
-    """
-    This represents a piece on the Hua Rong Dao puzzle.
-    """
-
-    def __init__(self, is_goal, is_single, coord_x, coord_y, orientation):
-        """
-        :param is_goal: True if the piece is the goal piece and False otherwise.
-        :type is_goal: bool
-        :param is_single: True if this piece is a 1x1 piece and False otherwise.
-        :type is_single: bool
-        :param coord_x: The x coordinate of the top left corner of the piece.
-        :type coord_x: int
-        :param coord_y: The y coordinate of the top left corner of the piece.
-        :type coord_y: int
-        :param orientation: The orientation of the piece (one of 'h' or 'v') 
-            if the piece is a 1x2 piece. Otherwise, this is None
-        :type orientation: str
-        """
-
-        self.is_goal = is_goal
-        self.is_single = is_single
-        self.coord_x = coord_x
-        self.coord_y = coord_y
-        self.orientation = orientation
-
-    def __repr__(self):
-        return '{} {} {} {} {}'.format(self.is_goal, self.is_single, \
-            self.coord_x, self.coord_y, self.orientation)
-
-    def move_valid(self, x_coord, y_coord): 
-        """
-        Check if the given coordinate is valid.
-        """
-        if(self.is_single):
-            if (x_coord < 0 or x_coord > 3 or y_coord < 0 or y_coord > 4):
-                return False
-        if (self.is_goal):
-            if (x_coord < 0 or x_coord > 2 or y_coord < 0 or y_coord > 3):
-                return False
-        if (self.orientation == 'h'):
-            if (x_coord < 0 or x_coord > 2 or y_coord < 0 or y_coord > 4):
-                return False
-        if (self.orientation == 'v'): 
-            if (x_coord < 0 or x_coord > 3 or y_coord < 0 or y_coord > 3):
-                return False
-        return True
-
-
-class Board:
-    """
-    Board class for setting up the playing board.
-    """
-
-    def __init__(self, pieces):
-        """
-        :param pieces: The list of Pieces
-        :type pieces: List[Piece]
-        """
-
-        self.width = 4
-        self.height = 5
-
-        self.pieces = pieces
-
-        # self.grid is a 2-d (size * size) array automatically generated
-        # using the information on the pieces when a board is being created.
-        # A grid contains the symbol for representing the pieces on the board.
-        self.grid = []
-        self.__construct_grid()
-
-
-    def __construct_grid(self):
-        """
-        Called in __init__ to set up a 2-d grid based on the piece location information.
-        """
-
-        for i in range(self.height):
-            line = []
-            for j in range(self.width):
-                line.append('.')
-            self.grid.append(line)
-
-        for piece in self.pieces:
-            if piece.is_goal:
-                self.grid[piece.coord_y][piece.coord_x] = char_goal
-                self.grid[piece.coord_y][piece.coord_x + 1] = char_goal
-                self.grid[piece.coord_y + 1][piece.coord_x] = char_goal
-                self.grid[piece.coord_y + 1][piece.coord_x + 1] = char_goal
-            elif piece.is_single:
-                self.grid[piece.coord_y][piece.coord_x] = char_single
-            else:
-                if piece.orientation == 'h':
-                    self.grid[piece.coord_y][piece.coord_x] = '<'
-                    self.grid[piece.coord_y][piece.coord_x + 1] = '>'
-                elif piece.orientation == 'v':
-                    self.grid[piece.coord_y][piece.coord_x] = '^'
-                    self.grid[piece.coord_y + 1][piece.coord_x] = 'v'
-
-    def construct_hash(self):
-        """
-        Construct a unique value to hash for a state.
-        This value is made from the current board characters. 
-        """
-        hash = ''
-        for i, line in enumerate(self.grid):
-            for ch in line:
-                hash += ch
-        return hash
-
-    def display(self):
-        """
-        Print out the current board.
-        """
-        for i, line in enumerate(self.grid):
-            for ch in line:
-                print(ch, end='')
-            print()
-    
-    def display_file(self, file):
-        """
-        Print out the current board to output file.
-        This is the same as the display function, but it outputs the board to a file instead. 
-        """
-        for i, line in enumerate(self.grid):
-            for ch in line:
-                file.write(ch)
-            file.write('\n')
-
-
-class State:
-    """
-    State class wrapping a Board with some extra current state information.
-    Note that State and Board are different. Board has the locations of the pieces. 
-    State has a Board and some extra information that is relevant to the search: 
-    heuristic function, f value, current depth and parent.
-    """
-
-    def __init__(self, board, f, depth, parent=None):
-        """
-        :param board: The board of the state.
-        :type board: Board
-        :param f: The f value of current state.
-        :type f: int
-        :param depth: The depth of current state in the search tree.
-        :type depth: int
-        :param parent: The parent of current state.
-        :type parent: Optional[State]
-        """
-        self.board = board
-        self.f = f
-        self.depth = depth
-        self.parent = parent
-        self.id = hash(self.board.construct_hash())
-        # self.id = hash(board)  # The id for breaking ties.
-
-    def test_goal(self):
-        """
-        Test if the current state is the goal state.
-        :return: True if the current state is the goal state and False otherwise.
-        :rtype: bool
-        """
-
-        for piece in self.board.pieces:
-            if piece.is_goal:
-                if (self.board.grid[3][1] == char_goal 
-                    and self.board.grid[3][2] == char_goal
-                    and self.board.grid[4][1] == char_goal 
-                    and self.board.grid[4][2] == char_goal):
-                    return True
-        return False
 
 def read_from_file(filename):
     """
@@ -205,20 +34,18 @@ def read_from_file(filename):
 
         for x, ch in enumerate(line):
 
-            if ch == '^': # found vertical piece
+            if ch == const.CHAR_VER_UP: # found vertical piece
                 pieces.append(Piece(False, False, x, line_index, 'v'))
-            elif ch == '<': # found horizontal piece
+            elif ch == const.CHAR_HOR_LEFT: # found horizontal piece
                 pieces.append(Piece(False, False, x, line_index, 'h'))
-            elif ch == char_single:
+            elif ch == const.CHAR_SINGLE:
                 pieces.append(Piece(False, True, x, line_index, None))
-            elif ch == char_goal:
+            elif ch == const.CHAR_GOAL:
                 if g_found == False:
                     pieces.append(Piece(True, False, x, line_index, None))
                     g_found = True
         line_index += 1
-
     puzzle_file.close()
-
     board = Board(pieces)
     
     return board
@@ -487,7 +314,8 @@ if __name__ == "__main__":
     output_file.close()
 
     end = time.time()
-    print(end - start)
+    total_time = round(end - start, 4)
+    print("Found solution to " + args.inputfile + " using " + args.algo + " in " + str(total_time) + " seconds.")
 
 
 
